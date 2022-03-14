@@ -25,6 +25,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
+options(knitr.kable.NA = '')
 #notes on fonts, font size, line spacing https://bookdown.org/yihui/rmarkdown-cookbook/latex-variables.html
 knitr::opts_chunk$set(echo = FALSE)
 library(here)
@@ -148,6 +149,8 @@ intercept.std.poisson <- sum.mod.poisson$coefficients[1,2]
 race.poisson <- sum.mod.poisson$coefficients[2,1]
 race.std.poisson <- sum.mod.poisson$coefficients[2,2]
 aic.poisson <- AIC(mod.poisson)
+meanblack.poisson <- exp(intercept.poisson)
+meanwhite.poisson <- exp(intercept.poisson + race.poisson)
 ```
 
 The model shows that white respondents know less homicide victims, on average, than black respondents. Indeed, the risk ratio in table \@ref(tab:poissonrr) shows that the number of known homicide victims for white respondents is `r poissonrr[2,1]` (between `r poissonrr[2,2]` and `r poissonrr[2,3]` with a confidence level of 95%) times the average number of homicide victims that  black respondents know on average.
@@ -225,17 +228,19 @@ sumnb$coefficients %>%
   rbind(theta = c(mod.nb$theta, mod.nb$SE.theta, NA, NA)) %>%
   kable(booktabs = T, 
         caption = "Negative binomial model.") %>% kable_styling()
-munbblack <- round(exp(unlist(mod.nb$coefficients[1])), digits = 2)
+meanblack.nb <- round(exp(unlist(mod.nb$coefficients[1])), digits = 2)
 thetanb <- mod.nb$theta
-munbwhite <- round(exp(unlist(mod.nb$coefficients[1]) + unlist(mod.nb$coefficients[2])), digits = 2)
+meanwhite.nb <- round(exp(unlist(mod.nb$coefficients[1]) + unlist(mod.nb$coefficients[2])), digits = 2)
 aic.nb <- AIC(mod.nb)
 intercept.nb <- sumnb$coefficients[1,1]
 intercept.std.nb <- sumnb$coefficients[1,2]
 race.nb <- sumnb$coefficients[2,1]
 race.std.nb <- sumnb$coefficients[2,2]
+varblack.nb <- unname(meanblack.nb + 1/thetanb*meanblack.nb^2)
+varwhite.nb <- unname(meanwhite.nb + 1/thetanb*meanwhite.nb^2)
 ```
 
-The model shows similar estimated coefficients but much larger standard deviations than the Poisson model (table \@ref(tab:negbin)). The variance for each of the races can be obtained from the equation $\sigma^2 = \mu+\frac{1}{\theta}\mu^2$ where $\mu = e^{x' \hat{\beta} }$. For black people, $\mu =$ `r unname(munbblack)` and the variance is `r round(unname(munbblack + 1/thetanb*munbblack^2), digits = 2)`. For white people, $\mu =$ `r unname(munbwhite)` and the variance is `r round(unname(munbwhite + 1/thetanb*munbwhite^2), digits = 2)`. This shows that the variance for black people is overestimated (it was `r summ[1,5]` in reality) and the variance for white people is slightly underestimated (it was `r summ[2,5]` in reality).
+The model shows similar estimated coefficients but much larger standard deviations than the Poisson model (table \@ref(tab:negbin)). The variance for each of the races can be obtained from the equation $\sigma^2 = \mu+\frac{1}{\theta}\mu^2$ where $\mu = e^{x' \hat{\beta} }$. For black people, $\mu =$ `r unname(meanblack.nb)` and the variance is `r round(varblack.nb, digits = 2)`. For white people, $\mu =$ `r unname(meanwhite.nb)` and the variance is `r round(varwhite.nb, digits = 2)`. This shows that the variance for black people is overestimated (it was `r summ[1,5]` in reality) and the variance for white people is slightly underestimated (it was `r summ[2,5]` in reality).
 
 ## Quasi-likelihood model
 In quasi-likelihood models, the mean and variance function are specified separately. This thus lifts the poisson assumption that mean and variance are equal. In general, if the mean structure is specified as $\lambda = \mu(x,\beta) = e^{x'\beta}$, then the variance is $var(y_i) = \phi\lambda$ where $\hat{\beta}$ and $\phi$ are estimated from the Pearson statistic. This model thus assumes a linear relationship between the mean and variance.
@@ -251,6 +256,10 @@ intercept.std.quasip <- sum.quasip$coefficients[1,2]
 race.quasip <- sum.quasip$coefficients[2,1]
 race.std.quasip <- sum.quasip$coefficients[2,2]
 aic.quasip <- AIC(mod.quasip)
+meanblack.quasip <- exp(intercept.quasip)
+varblack.quasip <-  sum.quasip$dispersion * exp(intercept.quasip)
+meanwhite.quasip <-  exp(intercept.quasip + race.quasip)
+varwhite.quasip <-  sum.quasip$dispersion * exp(intercept.quasip + race.quasip)
 ```
 
 The regression results show that the dispersion parameter $\phi$ is estimated to be `r round(sum.quasip$dispersion, digits = 2)` which is much larger than one (Poisson model assumes it to be one).
@@ -299,9 +308,14 @@ lambdawhite.zip <- exp(intercept.zip + race.zip)
 piblack.zip <- exp(intercept.zero.zip) /  (1 + exp(intercept.zero.zip)) #binomial model
 piwhite.zip <- exp(intercept.zero.zip + race.zero.zip) / 
   (1 + exp(intercept.zero.zip + race.zero.zip)) #binomial model
+#https://stats.stackexchange.com/questions/18661/mean-and-variance-of-a-zero-inflated-poisson-distribution
+meanblack.zip <- (1-piblack.zip)*lambdablack.zip
+varblack.zip <- (1-piblack.zip)*lambdablack.zip + piblack.zip/(1-piblack.zip)* ((1-piblack.zip)*lambdablack.zip)^2
+meanwhite.zip <- (1-piwhite.zip)*lambdawhite.zip
+varwhite.zip <- (1-piwhite.zip)*lambdawhite.zip + piwhite.zip/(1-piwhite.zip)* ((1-piwhite.zip)*lambdawhite.zip)^2
 ```
 
-The zero-inflated poisson model shows that white people are significantly more likely to know no homicide victims and the poisson regression coefficient for white people is still negative  and highly significant. The mean and variance are calculated as $\mu_i = (1-\pi_i)\lambda_i$ and $\sigma^2_i = (1-\pi_i)(\lambda^2_i + \lambda_i)$ with $i \in$ white,black where $\lambda$ is the average rate in the count process and $\pi$ the probability of zero. This yields $\mu_{black}=$ `r round((1-piblack.zip)*lambdablack.zip, digits=2)` and $\sigma^2_{black} =$ `r round((1-piblack.zip)*(lambdablack.zip^2 + lambdablack.zip), digits=2)` for black people and $\mu_{white}=$ `r round((1-piwhite.zip)*lambdawhite.zip, digits=2)` and $\sigma^2_{white} =$ `r round((1-piwhite.zip)*(lambdawhite.zip^2 + lambdawhite.zip), digits=2)` for white people.
+The zero-inflated poisson model shows that white people are significantly more likely to know no homicide victims and the poisson regression coefficient for white people is still negative  and highly significant. The mean and variance are calculated as $\mu_i = (1-\pi_i)\lambda_i$ and $\sigma^2_i = \mu_i + \frac{\pi_i}{(1-\pi_i)}(\mu^2_i)$ with $i \in \{white, black\}$ where $\lambda$ is the average rate in the count process and $\pi$ the probability of zero. This yields $\mu_{black}=$ `r round(meanblack.zip, digits=2)` and $\sigma^2_{black} =$ `r round(varblack.zip, digits=2)` for black people and $\mu_{white}=$ `r round(meanwhite.zip, digits=2)` and $\sigma^2_{white} =$ `r round(varwhite.zip, digits=2)` for white people.
 
 ```{r zinb, include=TRUE, message = FALSE}
 mod.zinb <- zeroinfl(resp ~ race | race,  dist = 'negbin', data = data)
@@ -333,11 +347,89 @@ lambdawhite.zinb <- exp(intercept.zinb + race.zinb)
 piblack.zinb <- exp(intercept.zero.zinb) /  (1 + exp(intercept.zero.zinb)) #binomial model
 piwhite.zinb <- exp(intercept.zero.zinb + race.zero.zinb) / 
   (1 + exp(intercept.zero.zinb + race.zero.zinb)) #binomial model
+meanblack.zinb <- (1 - piblack.zinb) * lambdablack.zinb
+varblack.zinb <- (1 - piblack.zinb) * lambdablack.zinb * (1 + lambdablack.zinb * (piblack.zinb + 1/mod.zinb$theta))# do we need to use the log(theta) or theta?
+meanwhite.zinb <- (1 - piwhite.zinb) * lambdawhite.zinb
+varwhite.zinb <- (1 - piwhite.zinb) * lambdawhite.zinb * (1 + lambdawhite.zinb * (piwhite.zinb + 1/mod.zinb$theta))# do we need to use the log(theta) or theta?
+
+#https://data.princeton.edu/wws509/notes/countmoments
 ```
+The mean and variance are calculated as $\mu_i = (1-\pi_i)\lambda_i$ and $\sigma^2_i = (1-\pi_i)\lambda_i(1 + \lambda_i(\pi_i + \alpha))$ with $i \in \{white, black\}$ where $\lambda$ is the average for the negative binomial process, $\pi$ the probability of zero, and $\alpha = \frac{1}{\theta}$ the overdispersion parameter. This yields $\mu_{black}=$ `r round(meanblack.zinb, digits=2)` and $\sigma^2_{black} =$ `r round(varblack.zinb, digits=2)` for black people and $\mu_{white}=$ `r round(meanwhite.zinb, digits=2)` and $\sigma^2_{white} =$ `r round(varwhite.zinb, digits=2)` for white people.
+It is interesting to see that $\theta$ is not significant; a zero-inflated Poisson where ($\theta$ = 1) might be just as good.
 
 # Conclusion {#CON}
-Table \@ref(tab:comparemodels) shows the 
+Table \@ref(tab:comparemodels) shows the different models' estimate coefficients and Akaike Information Criterion (AIC). The zero-inflated model parameters cannot directly compared to the other three models. Therefore, estimated mean and variance for both races are also included. The mean and variance for the number of homicide victim a black or white person know is closest to the sample mean and variance in the zero-inflated poisson model and the zero-inflated negative binomial is a close second. The zero-inflate Poisson model also has the lowest AIC. Figure \@ref(fig: comparemodels2) compares the different model graphically. It is clear that the poisson model performs the worst, especially for black people. The zero-inflated models are the closest to the true data where zero-inflated Poisson seems to slightly outperform the zero-inflated negative binomial model; it almost entirely overlaps with the sample probabilities. 
 
 ```{r comparemodels, include=TRUE, message = FALSE}
-
+comparison <- data.frame(poisson = c(intercept.poisson, intercept.std.poisson, race.poisson, race.std.poisson, NA, NA, NA, NA, meanblack.poisson, meanblack.poisson, meanwhite.poisson, meanwhite.poisson, aic.poisson),
+                         negbin = c(intercept.nb, intercept.std.nb, race.nb, race.std.poisson, NA, NA, NA, NA, meanblack.nb, varblack.nb, meanwhite.nb, varwhite.nb, aic.nb),
+                         quasil = c(intercept.quasip , intercept.std.quasip, race.quasip, race.std.quasip, NA, NA, NA, NA, meanblack.quasip, varblack.quasip, meanwhite.quasip, varwhite.quasip, aic.quasip),
+                         zip = c(intercept.zip , intercept.std.zip, race.zip, race.std.zip, intercept.zero.zip , intercept.zero.std.zip, race.zero.zip, race.zero.std.zip, meanblack.zip, varblack.zip, meanwhite.zip, varwhite.zip, aic.zip),
+                         zinb = c(intercept.zinb , intercept.std.zinb, race.zinb, race.std.zinb, intercept.zero.zinb , intercept.zero.std.zinb, race.zero.zinb, race.zero.std.zinb, meanblack.zinb, varblack.zinb, meanwhite.zinb, varwhite.zinb, aic.zinb)) 
+rownames(comparison) <- c('Intercept', 'Intercept std', 'racewhite', 
+                          'racewhite std','Intercept ', 'Intercept std ', 
+                          'racewhite ', 'racewhite std ', 'mean black', 
+                          'variance black','mean white', 'variance white', 
+                          'AIC')
+comparison %>%
+  kable(booktabs = T, 
+        caption = "Comparison of all models.",
+        row.names = TRUE,
+        col.names = c('Poisson','Negative binomial','Quasi likelihood','Zero-inflated  Poisson','Zero-Inflated Negative binomial'),
+        digits = 2) %>%
+  group_rows("Count",1,4) %>%
+  group_rows("Probability of zero",5,8) %>%
+  group_rows("Estimated mean and variance",9,12) %>%
+  group_rows("Model performance",13,13) %>%
+  column_spec(2:6, width = "2cm") %>%
+  kable_styling()
+```
+```{r comparemodels2, include=TRUE, message = FALSE, fig.cap = "Graphical comparison of the sample probabilities and the predicted probabilities."}
+data %>% group_by(race, resp) %>%
+  summarize(n = n()) %>% 
+  ungroup() %>% 
+  group_by(race) %>%
+  mutate(data = n/sum(n)) %>%
+  complete(race, resp, fill = list(n = 0, perc = 0)) %>%
+  distinct() %>%
+  arrange(race, resp) %>%
+  mutate(poisson = ifelse(race =="black",
+                          exp(-1*meanblack.poisson)*meanblack.poisson^resp/factorial(resp),
+                          exp(-1*meanwhite.poisson)*meanwhite.poisson^resp/factorial(resp)
+         ),
+         nb = ifelse(race == "black",
+                     dnbinom(resp, size = mod.nb$theta, mu = meanblack.nb),
+                     dnbinom(resp, size = mod.nb$theta, mu = meanblack.nb)),
+         zip = ifelse(race =="black", 
+                      ifelse(resp==0, piblack.zip + (1-piblack.zip) *
+                               exp(-1*exp(intercept.zip)),
+                             (1-piblack.zip) * exp(-1*exp(intercept.zip)) * 
+                               exp(intercept.zip)^resp / factorial(resp)),
+                      ifelse(resp==0, piwhite.zip + (1-piwhite.zip) * 
+                               exp(-1*exp(intercept.zip + race.zip)),
+                             (1-piwhite.zip) * exp(-1*exp(intercept.zip + race.zip)) * 
+                               exp(intercept.zip + race.zip)^resp / factorial(resp))
+                      ),
+         zinb = ifelse(race =="black",
+                       ifelse(resp==0, 
+                              piblack.zinb + (1-piblack.zinb) *
+                                dnbinom(0, size = mod.zinb$theta, 
+                                        mu = exp(intercept.zinb)),
+                              (1-piblack.zip) * dnbinom(resp, size = mod.zinb$theta, 
+                                                        mu = exp(intercept.zinb))),
+                       ifelse(resp==0, 
+                              piwhite.zip + (1-piwhite.zip) * 
+                                dnbinom(0, size = mod.zinb$theta, 
+                                        mu = exp(intercept.zinb + race.zinb)),
+                             (1-piwhite.zip) * 
+                               dnbinom(resp, size = mod.zinb$theta, 
+                                       mu = exp(intercept.zinb + race.zinb))
+                             )
+                       )
+         ) %>%
+  pivot_longer(cols = 4:8, names_to = "model", values_to = "probability") %>%
+  ggplot() + geom_line(aes(x=resp, y=probability, color = model)) +
+  geom_point(aes(x=resp, y=probability, color = model), fill = NA, shape = 21) +
+  facet_grid(cols = vars(race)) +
+  theme_bw()
 ```
