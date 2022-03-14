@@ -40,6 +40,6 @@ vignettes/*.pdf
 
 # latex files
 Index.tex
-.log
-.html
+Index.log
+Index.html
 src/Index_files/*
