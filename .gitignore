@@ -37,3 +37,9 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# latex files
+Index.tex
+.log
+.html
+src/Index_files/*
