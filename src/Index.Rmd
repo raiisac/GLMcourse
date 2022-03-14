@@ -290,10 +290,18 @@ intercept.zip <- sumzip$coefficients$count[1,1]
 intercept.std.zip <- sumzip$coefficients$count[1,2]
 race.zip <- sumzip$coefficients$count[2,1]
 race.std.zip <- sumzip$coefficients$count[2,2]
-
+intercept.zero.zip <- sumzip$coefficients$zero[1,1]
+intercept.zero.std.zip <- sumzip$coefficients$zero[1,2]
+race.zero.zip <- sumzip$coefficients$zero[2,1]
+race.zero.std.zip <- sumzip$coefficients$zero[2,2]
+lambdablack.zip <- exp(intercept.zip)
+lambdawhite.zip <- exp(intercept.zip + race.zip)
+piblack.zip <- exp(intercept.zero.zip) /  (1 + exp(intercept.zero.zip)) #binomial model
+piwhite.zip <- exp(intercept.zero.zip + race.zero.zip) / 
+  (1 + exp(intercept.zero.zip + race.zero.zip)) #binomial model
 ```
 
-The zero-inflated poisson model shows that white people are significantly more likely to know no homicide victims and the poisson regression coefficient for white people is still negative  and highly significant. 
+The zero-inflated poisson model shows that white people are significantly more likely to know no homicide victims and the poisson regression coefficient for white people is still negative  and highly significant. The mean and variance are calculated as $\mu_i = (1-\pi_i)\lambda_i$ and $\sigma^2_i = (1-\pi_i)(\lambda^2_i + \lambda_i)$ with $i \in$ white,black where $\lambda$ is the average rate in the count process and $\pi$ the probability of zero. This yields $\mu_{black}=$ `r round((1-piblack.zip)*lambdablack.zip, digits=2)` and $\sigma^2_{black} =$ `r round((1-piblack.zip)*(lambdablack.zip^2 + lambdablack.zip), digits=2)` for black people and $\mu_{white}=$ `r round((1-piwhite.zip)*lambdawhite.zip, digits=2)` and $\sigma^2_{white} =$ `r round((1-piwhite.zip)*(lambdawhite.zip^2 + lambdawhite.zip), digits=2)` for white people.
 
 ```{r zinb, include=TRUE, message = FALSE}
 mod.zinb <- zeroinfl(resp ~ race | race,  dist = 'negbin', data = data)
@@ -312,6 +320,19 @@ N  <- nrow(data)
 p  <- length(coef(mod.zinb))  
 disp.zinb <- sum(E2^2) / (N - p)#1.06dispersion statistic gets really close to one!
 aic.zinb <- AIC(mod.zinb)
+intercept.zinb <- sumzinb$coefficients$count[1,1]
+intercept.std.zinb <- sumzinb$coefficients$count[1,2]
+race.zinb <- sumzinb$coefficients$count[2,1]
+race.std.zinb <- sumzinb$coefficients$count[2,2]
+intercept.zero.zinb <- sumzinb$coefficients$zero[1,1]
+intercept.zero.std.zinb <- sumzinb$coefficients$zero[1,2]
+race.zero.zinb <- sumzinb$coefficients$zero[2,1]
+race.zero.std.zinb <- sumzinb$coefficients$zero[2,2]
+lambdablack.zinb <- exp(intercept.zinb)
+lambdawhite.zinb <- exp(intercept.zinb + race.zinb)
+piblack.zinb <- exp(intercept.zero.zinb) /  (1 + exp(intercept.zero.zinb)) #binomial model
+piwhite.zinb <- exp(intercept.zero.zinb + race.zero.zinb) / 
+  (1 + exp(intercept.zero.zinb + race.zero.zinb)) #binomial model
 ```
 
 # Conclusion {#CON}
