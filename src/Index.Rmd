@@ -33,24 +33,27 @@ library(cowplot)
 library(kableExtra)
 library(multcomp)
 library(DHARMa) # to simulate residuals
+library(MASS)
+library(pscl) #zero-inflated poisson
 #read the data
 library(vcd) #for the rootogram
 data <- read.delim(file = sprintf("%s/data/homicidevictim.txt",here())) %>% 
   mutate(race = as.factor(race))
-  
+
+summ <- data %>% group_by(race) %>%
+  summarize(nb = n(),
+            mean = round(mean(resp), digits = 2),
+            median = round(median(resp), digits = 2),
+            variance = round(var(resp), digits = 2))
 ```
 
 # Introduction
 This report investigated the link between a persons' race and the number of homicide victims a person knows. `r nrow(data)` people were asked how many homicide victims they know. The raw data is analysed in section \@ref(EDA) after which several statistical models are explored in section \@ref(MET). Lastly, section \@ref(CON) concludes the report.
 
 # Data exploration{#EDA}
-In total, `r nrow(data)` respondents were asked how many homicide victims they knew. Figure \@ref(fig:Response) shows the absolute and relative number of respondents for each race that knew 0, 1, 2, 3, 4, 5, or 6 homicide victims. The same summary data is displayed in Table \@ref(tab:Responsetab). It`r` is clear that there are a lot more white participants in the study (`r sum(data$race =="white")` (`r round(sum(data$race =="white")/nrow(data)*100,digits=2)`%) white versus `r sum(data$race =="black")` (`r round(sum(data$race =="black")/nrow(data)*100,digits=2)`%) black people were questioned) and the relative frequencies show that black people know more homicide victims on average ( `r mean(data[data$race=="white","resp"])` known homicide victims per person on average for white and `r mean(data[data$race=="black","resp"])` for black participants).
+In total, `r nrow(data)` respondents were asked how many homicide victims they knew. Figure \@ref(fig:Response) shows the absolute and relative number of respondents for each race that knew 0, 1, 2, 3, 4, 5, or 6 homicide victims. The same summary data is displayed in Table \@ref(tab:Responsetab). It is clear that there are a lot more white participants in the study (`r summ[2,'nb']` (`r round(summ[2,'nb']/nrow(data)*100, digits=2)`%) white versus `r summ[1,'nb']` (`r round(summ[1,'nb']/nrow(data)*100,digits=2)`%) black people were questioned) and the relative frequencies show that black people know more homicide victims on average (`r summ[2,'mean']` known homicide victims per person on average for white with a variance of `r summ[2,'variance']` and `r summ[1,'mean']` on average for black participants with a variance of `r summ[1,'variance']`).
 
 ```{r Response, include=TRUE, message = FALSE, fig.cap = "Absolute (A) and relative (B) number of respondents in each race and response group (number of homicide victims the respondent knows). The mean is indicated with a vertical line.", fig.height = 5, fig.width = 10}
-summ <- data %>% group_by(race) %>%
-  summarize(mean = mean(resp),
-            median = median(resp),
-            variance = var(resp))
 p1 <- data %>% group_by(resp, race) %>%
   summarize(n = n()) %>% 
   complete(resp, race, fill = list(n = 0)) %>%
@@ -62,7 +65,7 @@ p1 <- data %>% group_by(resp, race) %>%
   geom_text(aes(x = resp - 0.2*(race == "black") + 0.2*(race == "white"), 
                 y = (n + 10), 
                 label = n)) +
-  geom_vline(data = summ,aes(color = race, xintercept = mean)) +
+  geom_vline(data = summ, aes(color = race, xintercept = mean)) +
   ylab("Number of respondents in each race") + 
   xlab("Number of known homicide victims") +
   theme_bw() + theme(legend.position = c(0.8, 0.8))
@@ -99,12 +102,13 @@ data %>% group_by(race, resp) %>%
   ungroup() %>%
   kable(booktabs = TRUE, 
         caption = "Summary data.", 
+        linesep = "",
         col.names = str_wrap(c('Race', 'Response', 'Number of respondents',
                               'Percentage of respondents withing each race'),
                              width = 20 )) %>% 
   kable_styling()
-
 ```
+
 
 # Methodology & results {#MET}
 
@@ -139,10 +143,15 @@ glm.RR <- function(GLM.RESULT, digits = 2) {
     TABLE.EXP
 }
 poissonrr <- glm.RR(mod.poisson)
+intercept.poisson <- sum.mod.poisson$coefficients[1,1]
+intercept.std.poisson <- sum.mod.poisson$coefficients[1,2]
+race.poisson <- sum.mod.poisson$coefficients[2,1]
+race.std.poisson <- sum.mod.poisson$coefficients[2,2]
+aic.poisson <- AIC(mod.poisson)
 ```
 
 The model shows that white respondents know less homicide victims, on average, than black respondents. Indeed, the risk ratio in table \@ref(tab:poissonrr) shows that the number of known homicide victims for white respondents is `r poissonrr[2,1]` (between `r poissonrr[2,2]` and `r poissonrr[2,3]` with a confidence level of 95%) times the average number of homicide victims that  black respondents know on average.
-Since the poisson regression models the log mean of the poisson regression, the mean number of homicide victims for black people is estimated to be exp(`r sum.mod.poisson$coefficients[1,1]`) = `r exp(sum.mod.poisson$coefficients[1,1])` and exp(`r sum.mod.poisson$coefficients[1,1]` + `r sum.mod.poisson$coefficients[2,1]`) = `r exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1])` for white individuals. Those averages are exactly equal to the observed values (section \@(ref:EDA)). The ratio of the mean responses is `r exp(sum.mod.poisson$coefficients[1,1] )/exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1])` (black/white) and `r exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1])/exp(sum.mod.poisson$coefficients[1,1])` (white/black). This means that, on average, a black person knows `r round(exp(sum.mod.poisson$coefficients[1,1] )/exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1]), digits=2)` times more homicide victims than a white person notice that `r exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1])/exp(sum.mod.poisson$coefficients[1,1])` = 1/`r round(exp(sum.mod.poisson$coefficients[1,1] )/exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1]), digits=2)`.
+Since the poisson regression models the log mean of the poisson regression, the mean number of homicide victims for black people is estimated to be exp(`r round(intercept.poisson,digits = 2)`) = `r round(exp(intercept.poisson), digits = 2)` and exp(`r round(intercept.poisson, digits = 2)` `r round(race.poisson, digits = 2)`) = `r round(exp(intercept.poisson + race.poisson), digits = 2)` for white individuals. Those averages underestimate the observed values (section \@ref(EDA)). The ratio of the mean responses is `r round(exp(sum.mod.poisson$coefficients[1,1] )/exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1]), digits = 2)` (black/white) and `r round(exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1])/exp(sum.mod.poisson$coefficients[1,1]), digits = 2)` (white/black). This means that, on average, a black person knows `r round(exp(sum.mod.poisson$coefficients[1,1] )/exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1]), digits=2)` times more homicide victims than a white person notice that `r round(exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1])/exp(sum.mod.poisson$coefficients[1,1]),digits = 2)` = 1/`r round(exp(sum.mod.poisson$coefficients[1,1] )/exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1]), digits=2)`.
 
 ```{r poissonrr,include=TRUE, message = FALSE}
 kable(poissonrr, 
@@ -179,17 +188,22 @@ data %>% group_by(resp, race) %>%
   scale_fill_discrete(name = "", labels = c('True probability','Predicted probability'))
 ```
 
-Indeed, one important assumption in a Poisson model, is that the mean is equal to the variance. The variance in the data is `r var(data$resp)` (`r unname(unlist(summ[1,4]))` for black and `r unname(unlist(summ[2,4]))` for white respondents). Figure \@ref(fig:GOF1) below shows there is overdispersion (the real variance in red is larger than the simulated variance). 
+Indeed, one important assumption in a Poisson model, is that the mean is equal to the variance. The variance in the data is `r var(data$resp)` (`r unname(unlist(summ[1,5]))` for black and `r unname(unlist(summ[2,5]))` for white respondents). Figure \@ref(fig:GOF1) below shows there is overdispersion (the real variance in red is larger than the simulated variance). 
 
 ```{r include=TRUE, message = FALSE}
-sim.mod.poisson <- simulateResiduals(mod.poisson, plot = T)
+sim.mod.poisson <- simulateResiduals(mod.poisson, plot = T, seed = 2022)
 ```
 ```{r include=TRUE, message = FALSE}
 hist(sim.mod.poisson)
 ```
-```{r GOF1, include=TRUE, message = FALSE, fig.cap = "Test of uniformity (A) and dispersion (B)", fig.width = 10, fig.height = 6}
+```{r GOF1, include=TRUE, message = FALSE, fig.cap = "Test of uniformity and dispersion ", fig.width = 10, fig.height = 6}
 testUniformity(sim.mod.poisson)
 testDispersion(sim.mod.poisson)
+```
+
+```{r outliers, include=TRUE, message = FALSE, fig.cap = "Test of outliers", fig.width = 10, fig.height = 6}
+#testOutliers(sim.mod.poisson, type = "bootstrap")
+
 ```
 
 ## Negative-binomial model
@@ -204,27 +218,43 @@ E(x) = \mu = \frac{y\pi}{1-\pi} \\
 \end{equation} 
  This means that the negative binomial model assumes a quadratic relationship between the mean and the variance. 
  
-```{r include=FALSE, message = FALSE}
-library(MASS)
+```{r negbin, include=TRUE, message = FALSE}
 mod.nb <- glm.nb(resp ~ race, data = data)
 sumnb <- summary(mod.nb)
-sumnb
-munbblack <- exp(-unlist(mod.nb$coefficients[1]))
+sumnb$coefficients %>%
+  rbind(theta = c(mod.nb$theta, mod.nb$SE.theta, NA, NA)) %>%
+  kable(booktabs = T, 
+        caption = "Negative binomial model.") %>% kable_styling()
+munbblack <- round(exp(unlist(mod.nb$coefficients[1])), digits = 2)
 thetanb <- mod.nb$theta
-munbwhite <- exp(-unlist(mod.nb$coefficients[1]) + unlist(mod.nb$coefficients[2]))
+munbwhite <- round(exp(unlist(mod.nb$coefficients[1]) + unlist(mod.nb$coefficients[2])), digits = 2)
+aic.nb <- AIC(mod.nb)
+intercept.nb <- sumnb$coefficients[1,1]
+intercept.std.nb <- sumnb$coefficients[1,2]
+race.nb <- sumnb$coefficients[2,1]
+race.std.nb <- sumnb$coefficients[2,2]
 ```
 
-The variance for each of the races can be obtained from the equation $\sigma^2 = \mu+\frac{1}{\theta}\mu^2$ where $\mu = e^{x' \hat{\beta} }$. For black people, $\mu =$ `r unname(munbblack)` and the variance is `r unname(munbblack + 1/thetanb*munbblack^2)`. For white people, $\mu =$ `r unname(munbwhite)` and the variance is `r unname(munbwhite + 1/thetanb*munbwhite^2)`.
+The model shows similar estimated coefficients but much larger standard deviations than the Poisson model (table \@ref(tab:negbin)). The variance for each of the races can be obtained from the equation $\sigma^2 = \mu+\frac{1}{\theta}\mu^2$ where $\mu = e^{x' \hat{\beta} }$. For black people, $\mu =$ `r unname(munbblack)` and the variance is `r round(unname(munbblack + 1/thetanb*munbblack^2), digits = 2)`. For white people, $\mu =$ `r unname(munbwhite)` and the variance is `r round(unname(munbwhite + 1/thetanb*munbwhite^2), digits = 2)`. This shows that the variance for black people is overestimated (it was `r summ[1,5]` in reality) and the variance for white people is slightly underestimated (it was `r summ[2,5]` in reality).
 
 ## Quasi-likelihood model
 In quasi-likelihood models, the mean and variance function are specified separately. This thus lifts the poisson assumption that mean and variance are equal. In general, if the mean structure is specified as $\lambda = \mu(x,\beta) = e^{x'\beta}$, then the variance is $var(y_i) = \phi\lambda$ where $\hat{\beta}$ and $\phi$ are estimated from the Pearson statistic. This model thus assumes a linear relationship between the mean and variance.
-```{r include=TRUE, message = FALSE}
+```{r quasip, include=TRUE, message = FALSE}
 mod.quasip <- glm(resp ~ race, family = quasipoisson, data = data)
 sum.quasip <- summary(mod.quasip)
-sum.quasip
+sum.quasip$coefficients %>%
+  kable(booktabs = T, 
+        caption = "Quasi-likelihood model.") %>% kable_styling()
+
+intercept.quasip <- sum.quasip$coefficients[1,1]
+intercept.std.quasip <- sum.quasip$coefficients[1,2]
+race.quasip <- sum.quasip$coefficients[2,1]
+race.std.quasip <- sum.quasip$coefficients[2,2]
+aic.quasip <- AIC(mod.quasip)
 ```
 
-The regression results show that the dispersion parameter $\psi$ is estimated to be `r sum.quasip$dispersion` which is much larger than one (Poisson model assumes it to be one).
+The regression results show that the dispersion parameter $\phi$ is estimated to be `r round(sum.quasip$dispersion, digits = 2)` which is much larger than one (Poisson model assumes it to be one).
+The variances are estimated to be `r round(exp(intercept.quasip)*sum.quasip$dispersion, digits = 2)` for black people (it was `r summ[1,5]`in the sample) and `r round(exp(intercept.quasip + race.quasip)*sum.quasip$dispersion, digits = 2)` for white people (`r summ[1,5]`in the sample).
 
 ## Sandwich-estimator
 ```{r include=TRUE, message = FALSE}
@@ -237,29 +267,46 @@ coeftest(mod.poisson, vcov = sandwich)
 
 
 ## Zero-inflated models
-Lastly, a zero-inflated Poisson model and negative binomial was tested because the raw data showed that there were many people the knew no homicide victims. 
+Lastly, a zero-inflated Poisson model and negative binomial was tested because the raw data showed that there were many people that knew no homicide victims. 
 
-```{r include=TRUE, message = FALSE}
-library(pscl)
+```{r zip, include=TRUE, message = FALSE}
 mod.zip <- zeroinfl(resp ~ race | race,  dist = 'poisson', data = data)
 mnull <- update(mod.zip, . ~ 1)
-pchisq(2 * (logLik(mod.zip) - logLik(mnull)), df = 3, lower.tail = FALSE)
-summary(mod.zip)
+#pchisq(2 * (logLik(mod.zip) - logLik(mnull)), df = 3, lower.tail = FALSE)
+sumzip <- summary(mod.zip)
+sumzip$coefficients$count %>%
+  rbind(sumzip$coefficients$zero) %>%
+  kable(booktabs = T, 
+        caption = "Zero-inflated Poisson.") %>%
+  group_rows("Count",1,2) %>%
+  group_rows("Probability of zero",3,4) %>%
+  kable_styling()
 E2 <- resid(mod.zip, type = "pearson")
 N  <- nrow(data)
 p  <- length(coef(mod.zip))  
 disp.zip <- sum(E2^2) / (N - p)#1.09dispersion statistic gets really close to one!
 aic.zip <- AIC(mod.zip)
+intercept.zip <- sumzip$coefficients$count[1,1]
+intercept.std.zip <- sumzip$coefficients$count[1,2]
+race.zip <- sumzip$coefficients$count[2,1]
+race.std.zip <- sumzip$coefficients$count[2,2]
+
 ```
 
 The zero-inflated poisson model shows that white people are significantly more likely to know no homicide victims and the poisson regression coefficient for white people is still negative  and highly significant. 
 
-```{r include=TRUE, message = FALSE}
-library(pscl)
+```{r zinb, include=TRUE, message = FALSE}
 mod.zinb <- zeroinfl(resp ~ race | race,  dist = 'negbin', data = data)
 mnull <- update(mod.zinb, . ~ 1)
-pchisq(2 * (logLik(mod.zinb) - logLik(mnull)), df = 3, lower.tail = FALSE)
-summary(mod.zinb)
+#pchisq(2 * (logLik(mod.zinb) - logLik(mnull)), df = 3, lower.tail = FALSE)
+sumzinb <- summary(mod.zinb)  
+sumzinb$coefficients$count %>% 
+  rbind(sumzinb$coefficients$zero) %>%
+  kable(booktabs = T, 
+        caption = "Zero-inflated Negative Binomial.") %>%
+  group_rows("Count",1,3) %>%
+  group_rows("Probability of zero",4,5) %>%
+  kable_styling()
 E2 <- resid(mod.zinb, type = "pearson")
 N  <- nrow(data)
 p  <- length(coef(mod.zinb))  
@@ -268,3 +315,8 @@ aic.zinb <- AIC(mod.zinb)
 ```
 
 # Conclusion {#CON}
+Table \@ref(tab:comparemodels) shows the 
+
+```{r comparemodels, include=TRUE, message = FALSE}
+
+```
