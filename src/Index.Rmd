@@ -384,7 +384,7 @@ comparison %>%
   column_spec(2:6, width = "2cm") %>%
   kable_styling()
 ```
-```{r comparemodels2, include=TRUE, message = FALSE, fig.cap = "Graphical comparison of the sample probabilities and the predicted probabilities."}
+```{r comparemodels2, include=TRUE, message = FALSE, warning = FALSE, fig.cap = "Graphical comparison of the sample probabilities and the predicted probabilities."}
 data %>% group_by(race, resp) %>%
   summarize(n = n()) %>% 
   ungroup() %>% 
@@ -437,7 +437,7 @@ A %>%
   theme_bw() + theme(legend.position = c(0.8, 0.8))
 ```
 
-```{r comparemodels3, include=TRUE, message = FALSE, fig.cap = "Graphical comparison of the difference between the sample probabilities and the predicted probabilities."}
+```{r comparemodels3, include=TRUE, message = FALSE, warning = FALSE, fig.cap = "Graphical comparison of the difference between the sample probabilities and the predicted probabilities."}
 sampleprob <- A[A$model == "data", c('race', 'resp','probability')] %>% rename(prob = probability)
 A %>% filter(model != "data") %>%
   left_join(sampleprob, by = c("resp" = "resp", "race" = "race")) %>%
