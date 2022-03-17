@@ -358,7 +358,7 @@ The mean and variance are calculated as $\mu_i = (1-\pi_i)\lambda_i$ and $\sigma
 It is interesting to see that $\theta$ is not significant; a zero-inflated Poisson where ($\theta$ = 1) might be just as good.
 
 # Conclusion {#CON}
-Table \@ref(tab:comparemodels) shows the different models' estimate coefficients and Akaike Information Criterion (AIC). The zero-inflated model parameters cannot directly compared to the other three models. Therefore, estimated mean and variance for both races are also included. The mean and variance for the number of homicide victim a black or white person know is closest to the sample mean and variance in the zero-inflated poisson model and the zero-inflated negative binomial is a close second. The zero-inflate Poisson model also has the lowest AIC. Figure \@ref(fig: comparemodels2) compares the different model graphically. It is clear that the poisson model performs the worst, especially for black people. The zero-inflated models are the closest to the true data where zero-inflated Poisson seems to slightly outperform the zero-inflated negative binomial model; it almost entirely overlaps with the sample probabilities. 
+Table \@ref(tab:comparemodels) shows the different models' estimate coefficients and Akaike Information Criterion (AIC). The zero-inflated model parameters cannot directly compared to the other three models. Therefore, estimated mean and variance for both races are also included. The mean and variance for the number of homicide victim a black or white person know is closest to the sample mean and variance in the zero-inflated poisson model and the zero-inflated negative binomial is a close second. The zero-inflate Poisson model also has the lowest AIC. Figure \@ref(fig: comparemodels2) compares the different model graphically. It is clear that the poisson model performs the worst, especially for black people. The negative binomial is slightly better than the poisson model for black people but performs bad for white people. The zero-inflated models are the closest to the true data where zero-inflated Poisson seems to slightly outperform the zero-inflated negative binomial model; it almost entirely overlaps with the sample probabilities. Figure\@ref(fig: comparemodels3) shows the difference between the predicted and observed probabilities more clearly. Overall, the zero-inflated poisson model comes closest to the sample probabilities.
 
 ```{r comparemodels, include=TRUE, message = FALSE}
 comparison <- data.frame(poisson = c(intercept.poisson, intercept.std.poisson, race.poisson, race.std.poisson, NA, NA, NA, NA, meanblack.poisson, meanblack.poisson, meanwhite.poisson, meanwhite.poisson, aic.poisson),
@@ -427,9 +427,27 @@ data %>% group_by(race, resp) %>%
                              )
                        )
          ) %>%
-  pivot_longer(cols = 4:8, names_to = "model", values_to = "probability") %>%
-  ggplot() + geom_line(aes(x=resp, y=probability, color = model)) +
-  geom_point(aes(x=resp, y=probability, color = model), fill = NA, shape = 21) +
+  pivot_longer(cols = 4:8, names_to = "model", values_to = "probability") -> A
+A %>%
+  ggplot() + 
+  geom_line(aes(x = resp, y = probability, color = model)) +
+  geom_point(aes(x = resp, y = probability, color = model), 
+             fill = NA, shape = 21) +
   facet_grid(cols = vars(race)) +
-  theme_bw()
+  theme_bw() + theme(legend.position = c(0.8, 0.8))
+```
+
+```{r comparemodels3, include=TRUE, message = FALSE, fig.cap = "Graphical comparison of the difference between the sample probabilities and the predicted probabilities."}
+sampleprob <- A[A$model == "data", c('race', 'resp','probability')] %>% rename(prob = probability)
+A %>% filter(model != "data") %>%
+  left_join(sampleprob, by = c("resp" = "resp", "race" = "race")) %>%
+  mutate(
+    diff = probability - prob
+  ) %>%
+  ggplot() + geom_line(aes(x = resp, y = diff, color = model)) +
+  geom_point(aes(x = resp, y = diff, color = model), fill = NA, shape = 21) +
+  facet_grid(cols = vars(race)) +
+  theme_bw() +
+  theme(legend.position = c(0.8, 0.8)) +
+  ylab("Predicted probability minus sample probability")
 ```
