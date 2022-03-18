@@ -2,10 +2,10 @@
 title: 'Generalized linear model assignment: Group 8'
 author: 
   - Jack Heller (r0862809)
-  - Aleksandra Zdravkovic (r0869484)
+  - Aleksandra Zdravković (r0869484)
   - Viktoria Kirichenko (r0877202)
   - Medha Hegde (r0872802)
-  - Baris Aksoy (r0869901)
+  - Barış Aksoy (r0869901)
   - Raïsa Carmen (s0204278)
 date: "31-12-2021"
 fontsize: 12pt
@@ -38,6 +38,8 @@ library(MASS)
 library(pscl) #zero-inflated poisson
 #read the data
 library(vcd) #for the rootogram
+library(countreg)
+
 data <- read.delim(file = sprintf("%s/data/homicidevictim.txt",here())) %>% 
   mutate(race = as.factor(race))
 
@@ -49,9 +51,11 @@ summ <- data %>% group_by(race) %>%
 ```
 
 # Introduction
+
 This report investigated the link between a persons' race and the number of homicide victims a person knows. `r nrow(data)` people were asked how many homicide victims they know. The raw data is analysed in section \@ref(EDA) after which several statistical models are explored in section \@ref(MET). Lastly, section \@ref(CON) concludes the report.
 
 # Data exploration{#EDA}
+
 In total, `r nrow(data)` respondents were asked how many homicide victims they knew. Figure \@ref(fig:Response) shows the absolute and relative number of respondents for each race that knew 0, 1, 2, 3, 4, 5, or 6 homicide victims. The same summary data is displayed in Table \@ref(tab:Responsetab). It is clear that there are a lot more white participants in the study (`r summ[2,'nb']` (`r round(summ[2,'nb']/nrow(data)*100, digits=2)`%) white versus `r summ[1,'nb']` (`r round(summ[1,'nb']/nrow(data)*100,digits=2)`%) black people were questioned) and the relative frequencies show that black people know more homicide victims on average (`r summ[2,'mean']` known homicide victims per person on average for white with a variance of `r summ[2,'variance']` and `r summ[1,'mean']` on average for black participants with a variance of `r summ[1,'variance']`).
 
 ```{r Response, include=TRUE, message = FALSE, fig.cap = "Absolute (A) and relative (B) number of respondents in each race and response group (number of homicide victims the respondent knows). The mean is indicated with a vertical line.", fig.height = 5, fig.width = 10}
@@ -114,7 +118,7 @@ data %>% group_by(race, resp) %>%
 # Methodology & results {#MET}
 
 ## Poisson model
-Since the number of homocide victims a person knows is count data, a Poisson model is first applied to the data (Table \@ref(tab:poissonmodel)). 
+Since the number of homicide victims a person knows is count data, a Poisson model is first applied to the data (Table \ref{tab:poissonmodel}). 
 
 ```{r poissonmodel,include=TRUE, message = FALSE}
 mod.poisson <- glm(resp ~ race, family = poisson, data = data)
@@ -153,15 +157,22 @@ meanblack.poisson <- exp(intercept.poisson)
 meanwhite.poisson <- exp(intercept.poisson + race.poisson)
 ```
 
-The model shows that white respondents know less homicide victims, on average, than black respondents. Indeed, the risk ratio in table \@ref(tab:poissonrr) shows that the number of known homicide victims for white respondents is `r poissonrr[2,1]` (between `r poissonrr[2,2]` and `r poissonrr[2,3]` with a confidence level of 95%) times the average number of homicide victims that  black respondents know on average.
-Since the poisson regression models the log mean of the poisson regression, the mean number of homicide victims for black people is estimated to be exp(`r round(intercept.poisson,digits = 2)`) = `r round(exp(intercept.poisson), digits = 2)` and exp(`r round(intercept.poisson, digits = 2)` `r round(race.poisson, digits = 2)`) = `r round(exp(intercept.poisson + race.poisson), digits = 2)` for white individuals. Those averages underestimate the observed values (section \@ref(EDA)). The ratio of the mean responses is `r round(exp(sum.mod.poisson$coefficients[1,1] )/exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1]), digits = 2)` (black/white) and `r round(exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1])/exp(sum.mod.poisson$coefficients[1,1]), digits = 2)` (white/black). This means that, on average, a black person knows `r round(exp(sum.mod.poisson$coefficients[1,1] )/exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1]), digits=2)` times more homicide victims than a white person notice that `r round(exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1])/exp(sum.mod.poisson$coefficients[1,1]),digits = 2)` = 1/`r round(exp(sum.mod.poisson$coefficients[1,1] )/exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1]), digits=2)`.
+The model shows that on average, white respondents know less homicide victims than black respondents. The risk ratio in Table \@ref(tab:poissonrr) shows that the number of homicide victims known by white respondents is `r poissonrr[2,1]` times that of black respondents.
+To calculate the means for each level of covariate, the exponential transformation is being used: $exp(\textrm{`r round(intercept.poisson,digits = 2)`}) = `r round(exp(intercept.poisson), digits = 2)`$ and exp(`r round(intercept.poisson, digits = 2)` `r round(race.poisson, digits = 2)`) = `r round(exp(intercept.poisson + race.poisson), digits = 2)` for white individuals. 
+??????These averages underestimate the observed values (section \@ref(EDA)).???? 
+
+The ratio of the mean responses is `r round(exp(sum.mod.poisson$coefficients[1,1] )/exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1]), digits = 2)` (black/white) and `r round(exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1])/exp(sum.mod.poisson$coefficients[1,1]), digits = 2)` (white/black). This means that, on average, a black person knows `r round(exp(sum.mod.poisson$coefficients[1,1] )/exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1]), digits=2)` times more homicide victims than a white person.
 
 ```{r poissonrr,include=TRUE, message = FALSE}
 kable(poissonrr, 
         caption = "Poisson risk ratios.") %>% kable_styling()
 ```
 
-Figure \@ref(fig:poissonpredict) compares the true data with the predicted probabilities. Although the model is very accurate with respect to the mean, it is clear that the variance is larger in reality than in the Poisson model. Furthermore, there may be some zero-inflation, especially for the black population.
+Figure \@ref(fig:poissonpredict) compares the true data with the predicted probabilities.
+
+????Although the model is very accurate with respect to the mean, it is clear that the variance is larger in reality than in the Poisson model.???? 
+
+Furthermore, there may be some zero-inflation, especially for the black population.
 
 ```{r poissonpredict, include=TRUE, message = FALSE, fig.cap = "True and predited probabilities of respondents knowing a certain number of homicide victims, for each race.", fig.width = 10, fig.height = 6}
 ratewhite <- exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1])
@@ -191,25 +202,44 @@ data %>% group_by(resp, race) %>%
   scale_fill_discrete(name = "", labels = c('True probability','Predicted probability'))
 ```
 
-Indeed, one important assumption in a Poisson model, is that the mean is equal to the variance. The variance in the data is `r var(data$resp)` (`r unname(unlist(summ[1,5]))` for black and `r unname(unlist(summ[2,5]))` for white respondents). Figure \@ref(fig:GOF1) below shows there is overdispersion (the real variance in red is larger than the simulated variance). 
+An important assumption in a Poisson model is that the mean is equal to the variance. The variance in the data is `r var(data$resp)` (`r unname(unlist(summ[1,5]))` for black and `r unname(unlist(summ[2,5]))` for white respondents), while the mean is `r mean(data$resp)` . Also, the Figure \@ref(fig:GOF1) shows there is overdispersion (the real variance in red is larger than the simulated variance). 
 
 ```{r include=TRUE, message = FALSE}
-sim.mod.poisson <- simulateResiduals(mod.poisson, plot = T, seed = 2022)
+sim.mod.poisson <- simulateResiduals(mod.poisson, plot = T)
 ```
+
 ```{r include=TRUE, message = FALSE}
 hist(sim.mod.poisson)
 ```
+
+Kolmogorov-Smirnov test in the residuals' QQ plot indicates a borderline uniformity violation. However, when performing visual inspection of the histogram of DHARMa residuals, the bars do not appear to follow a uniform distribution.
+
+
+```{r ROOT1, include=TRUE, message = FALSE, fig.cap = "Rootogram", fig.width = 10, fig.height = 6}
+#install.packages("countreg", repos="http://R-Forge.R-project.org")
+rootogram(mod.poisson, ylab = "Root Square of Frequency", main = "Rootogram")
+
+```
+
+The rootogram shows that level 1 is overpredicted by our model, while other levels are moderately underpredicted. 
+
+
 ```{r GOF1, include=TRUE, message = FALSE, fig.cap = "Test of uniformity and dispersion ", fig.width = 10, fig.height = 6}
 testUniformity(sim.mod.poisson)
 testDispersion(sim.mod.poisson)
 ```
+
+The red line, which represents the observed variance, is significantly larger than what we would expect under the model. This indicates the presence of overdispersion. 
 
 ```{r outliers, include=TRUE, message = FALSE, fig.cap = "Test of outliers", fig.width = 10, fig.height = 6}
 #testOutliers(sim.mod.poisson, type = "bootstrap")
 
 ```
 
+
+
 ## Negative-binomial model
+
 This model uses the Pascal distribution which counts the number of failures before the y$^{th}$ success. If $x \sim NB(y,\pi)$ with $\pi$ the probability of success;
 
 \begin{equation} 
