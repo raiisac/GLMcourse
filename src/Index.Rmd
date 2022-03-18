@@ -109,7 +109,7 @@ data %>% group_by(race, resp) %>%
         caption = "Summary data.", 
         linesep = "",
         col.names = str_wrap(c('Race', 'Response', 'Number of respondents',
-                              'Percentage of respondents withing each race'),
+                              'Percentage of respondents within each race'),
                              width = 20 )) %>% 
   kable_styling()
 ```
@@ -159,7 +159,6 @@ meanwhite.poisson <- exp(intercept.poisson + race.poisson)
 
 The model shows that on average, white respondents know less homicide victims than black respondents. The risk ratio in Table \@ref(tab:poissonrr) shows that the number of homicide victims known by white respondents is `r poissonrr[2,1]` times that of black respondents.
 To calculate the means for each level of covariate, the exponential transformation is being used: $exp(\textrm{`r round(intercept.poisson,digits = 2)`}) = `r round(exp(intercept.poisson), digits = 2)`$ and exp(`r round(intercept.poisson, digits = 2)` `r round(race.poisson, digits = 2)`) = `r round(exp(intercept.poisson + race.poisson), digits = 2)` for white individuals. 
-??????These averages underestimate the observed values (section \@ref(EDA)).???? 
 
 The ratio of the mean responses is `r round(exp(sum.mod.poisson$coefficients[1,1] )/exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1]), digits = 2)` (black/white) and `r round(exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1])/exp(sum.mod.poisson$coefficients[1,1]), digits = 2)` (white/black). This means that, on average, a black person knows `r round(exp(sum.mod.poisson$coefficients[1,1] )/exp(sum.mod.poisson$coefficients[1,1] +  sum.mod.poisson$coefficients[2,1]), digits=2)` times more homicide victims than a white person.
 
