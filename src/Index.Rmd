@@ -38,6 +38,7 @@ library(MASS)
 library(pscl) #zero-inflated poisson
 #read the data
 library(vcd) #for the rootogram
+library(gtools)#for stars.pval
 library(countreg)
 
 data <- read.delim(file = sprintf("%s/data/homicidevictim.txt",here())) %>% 
@@ -110,17 +111,17 @@ data %>% group_by(race, resp) %>%
         linesep = "",
         col.names = str_wrap(c('Race', 'Response', 'Number of respondents',
                               'Percentage of respondents within each race'),
-                             width = 20 )) %>% 
-  kable_styling()
+                             width = 20 )) %>%
+  kable_styling(font_size = 8)
 ```
 
 
 # Methodology & results {#MET}
 
 ## Poisson model
-Since the number of homicide victims a person knows is count data, a Poisson model is first applied to the data (Table \ref{tab:poissonmodel}). 
+Since the number of homicide victims a person knows is count data, a Poisson model is first applied to the data (Table \ref{tab:comparemodels}). 
 
-```{r poissonmodel,include=TRUE, message = FALSE}
+```{r poissonmodel,include=FALSE, message = FALSE}
 mod.poisson <- glm(resp ~ race, family = poisson, data = data)
 sum.mod.poisson <- summary(mod.poisson)
 
@@ -250,7 +251,7 @@ E(x) = \mu = \frac{y\pi}{1-\pi} \\
 \end{equation} 
  This means that the negative binomial model assumes a quadratic relationship between the mean and the variance. 
  
-```{r negbin, include=TRUE, message = FALSE}
+```{r negbin, include=FALSE, message = FALSE}
 mod.nb <- glm.nb(resp ~ race, data = data)
 sumnb <- summary(mod.nb)
 sumnb$coefficients %>%
@@ -269,11 +270,11 @@ varblack.nb <- unname(meanblack.nb + 1/thetanb*meanblack.nb^2)
 varwhite.nb <- unname(meanwhite.nb + 1/thetanb*meanwhite.nb^2)
 ```
 
-The model shows similar estimated coefficients but much larger standard deviations than the Poisson model (table \@ref(tab:negbin)). The variance for each of the races can be obtained from the equation $\sigma^2 = \mu+\frac{1}{\theta}\mu^2$ where $\mu = e^{x' \hat{\beta} }$. For black people, $\mu =$ `r unname(meanblack.nb)` and the variance is `r round(varblack.nb, digits = 2)`. For white people, $\mu =$ `r unname(meanwhite.nb)` and the variance is `r round(varwhite.nb, digits = 2)`. This shows that the variance for black people is overestimated (it was `r summ[1,5]` in reality) and the variance for white people is slightly underestimated (it was `r summ[2,5]` in reality).
+The model shows similar estimated coefficients but much larger standard deviations than the Poisson model (table \@ref(tab:comparemodels)). The variance for each of the races can be obtained from the equation $\sigma^2 = \mu+\frac{1}{\theta}\mu^2$ where $\mu = e^{x' \hat{\beta} }$. For black people, $\mu =$ `r unname(meanblack.nb)` and the variance is `r round(varblack.nb, digits = 2)`. For white people, $\mu =$ `r unname(meanwhite.nb)` and the variance is `r round(varwhite.nb, digits = 2)`. This shows that the variance for black people is overestimated (it was `r summ[1,5]` in reality) and the variance for white people is slightly underestimated (it was `r summ[2,5]` in reality).
 
 ## Quasi-likelihood model
 In quasi-likelihood models, the mean and variance function are specified separately. This thus lifts the poisson assumption that mean and variance are equal. In general, if the mean structure is specified as $\lambda = \mu(x,\beta) = e^{x'\beta}$, then the variance is $var(y_i) = \phi\lambda$ where $\hat{\beta}$ and $\phi$ are estimated from the Pearson statistic. This model thus assumes a linear relationship between the mean and variance.
-```{r quasip, include=TRUE, message = FALSE}
+```{r quasip, include=FALSE, message = FALSE}
 mod.quasip <- glm(resp ~ race, family = quasipoisson, data = data)
 sum.quasip <- summary(mod.quasip)
 sum.quasip$coefficients %>%
@@ -294,20 +295,10 @@ varwhite.quasip <-  sum.quasip$dispersion * exp(intercept.quasip + race.quasip)
 The regression results show that the dispersion parameter $\phi$ is estimated to be `r round(sum.quasip$dispersion, digits = 2)` which means that the variance is estimated to be 75\% larger than the mean (Poisson model assumes mean and variance are equal).
 The variances are estimated to be `r round(exp(intercept.quasip)*sum.quasip$dispersion, digits = 2)` for black people (it was `r summ[1,5]`in the sample) and `r round(exp(intercept.quasip + race.quasip)*sum.quasip$dispersion, digits = 2)` for white people (`r summ[1,5]`in the sample).
 
-## Sandwich-estimator
-```{r include=TRUE, message = FALSE}
-library(sandwich)
-library(lmtest)
-coeftest(mod.poisson, vcov = sandwich)
-#mod.poisson.empty <- glm(resp ~ 1, family = poisson, data = data)
-#waldtest(mod.poisson, mod.poisson.empty,  vcoc = sandwich, test = "Chisq") # only works without the "sandwich"
-```
-
-
 ## Zero-inflated models
 Lastly, a zero-inflated Poisson model and negative binomial was tested because the raw data showed that there were many people that knew no homicide victims. 
 
-```{r zip, include=TRUE, message = FALSE}
+```{r zip, include=FALSE, message = FALSE}
 mod.zip <- zeroinfl(resp ~ race | race,  dist = 'poisson', data = data)
 mnull <- update(mod.zip, . ~ 1)
 #pchisq(2 * (logLik(mod.zip) - logLik(mnull)), df = 3, lower.tail = FALSE)
@@ -346,7 +337,7 @@ varwhite.zip <- (1-piwhite.zip)*lambdawhite.zip + piwhite.zip/(1-piwhite.zip)* (
 
 The zero-inflated poisson model shows that white people are significantly more likely to know no homicide victims and the poisson regression coefficient for white people is still negative  and highly significant. The mean and variance are calculated as $\mu_i = (1-\pi_i)\lambda_i$ and $\sigma^2_i = \mu_i + \frac{\pi_i}{(1-\pi_i)}(\mu^2_i)$ with $i \in \{white, black\}$ where $\lambda$ is the average rate in the count process and $\pi$ the probability of zero. This yields $\mu_{black}=$ `r round(meanblack.zip, digits=2)` and $\sigma^2_{black} =$ `r round(varblack.zip, digits=2)` for black people and $\mu_{white}=$ `r round(meanwhite.zip, digits=2)` and $\sigma^2_{white} =$ `r round(varwhite.zip, digits=2)` for white people.
 
-```{r zinb, include=TRUE, message = FALSE}
+```{r zinb, include=FALSE, message = FALSE}
 mod.zinb <- zeroinfl(resp ~ race | race,  dist = 'negbin', data = data)
 mnull <- update(mod.zinb, . ~ 1)
 #pchisq(2 * (logLik(mod.zinb) - logLik(mnull)), df = 3, lower.tail = FALSE)
@@ -394,43 +385,75 @@ Table \@ref(tab:comparemodels) shows the different models' estimate coefficients
 comparison <- data.frame(data = unlist(c(NA, NA, NA, NA, NA, NA, 
                                 sprintf("%.2f",summ[1,'mean']), summ[1,'variance'],
                                 summ[2,'mean'], summ[2,'variance'], NA)),
-                         poisson = c(sprintf("%.2f (%.2f)",intercept.poisson, intercept.std.poisson), 
-                                     sprintf("%.2f (%.2f)",race.poisson, race.std.poisson), 
+                         poisson = c(sprintf("%.2f (%.2f) %s",intercept.poisson, 
+                                             intercept.std.poisson, 
+                                             stars.pval(sum.mod.poisson$coefficients[1,4])), 
+                                     sprintf("%.2f (%.2f) %s",race.poisson, 
+                                             race.std.poisson,
+                                             stars.pval(sum.mod.poisson$coefficients[2,4])), 
                                      NA, NA, NA, NA,  
                                      round(meanblack.poisson,2), round(meanblack.poisson,2), 
-                                     round(meanwhite.poisson,2), round(meanwhite.poisson,2), round(aic.poisson,2)),
-                         negbin = c(sprintf("%.2f (%.2f)",intercept.nb, intercept.std.nb), 
-                                    sprintf("%.2f (%.2f)",race.nb, race.std.poisson), 
-                                    round(mod.nb$theta,2), NA, NA, NA, 
+                                     round(meanwhite.poisson,2), round(meanwhite.poisson,2), 
+                                     round(aic.poisson,2)),
+                         negbin = c(sprintf("%.2f (%.2f) %s",intercept.nb, 
+                                            intercept.std.nb,
+                                            stars.pval(sumnb$coefficients[1,4])), 
+                                    sprintf("%.2f (%.2f) %s",race.nb, 
+                                            race.std.poisson,
+                                            stars.pval(sumnb$coefficients[2,4])), 
+                                    sprintf("%.2f (%.2f)",round(mod.nb$theta,2), round(sumnb$SE.theta,2)), 
+                                    NA, NA, NA, 
                                     round(meanblack.nb,2), round(varblack.nb,2), 
                                     round(meanwhite.nb,2), round(varwhite.nb,2), 
                                     round(aic.nb,2)),
-                         quasil = c(sprintf("%.2f (%.2f)",intercept.quasip , intercept.std.quasip), 
-                                    sprintf("%.2f (%.2f)",race.quasip, race.std.quasip), 
+                         quasil = c(sprintf("%.2f (%.2f) %s",intercept.quasip , 
+                                            intercept.std.quasip,
+                                            stars.pval(sum.quasip$coefficients[1,4])), 
+                                    sprintf("%.2f (%.2f) %s",race.quasip, 
+                                            race.std.quasip,
+                                            stars.pval(sum.quasip$coefficients[2,4])), 
                                     NA, round(sum.quasip$dispersion,2), NA, NA,  
                                     round(meanblack.quasip,2), round(varblack.quasip,2), 
                                     round(meanwhite.quasip,2), round(varwhite.quasip,2), 
                                     round(aic.quasip,2)),
-                         zip = c(sprintf("%.2f (%.2f)",intercept.zip , intercept.std.zip), 
-                                 sprintf("%.2f (%.2f)",race.zip, race.std.zip), 
+                         zip = c(sprintf("%.2f (%.2f) %s",intercept.zip , 
+                                         intercept.std.zip,
+                                         stars.pval(sumzip$coefficients$count[1,4])), 
+                                 sprintf("%.2f (%.2f) %s", race.zip, 
+                                         race.std.zip,
+                                         stars.pval(sumzip$coefficients$count[2,4])), 
                                  NA, NA,
-                                 sprintf("%.2f (%.2f)",intercept.zero.zip , intercept.zero.std.zip), 
-                                 sprintf("%.2f (%.2f)",race.zero.zip, race.zero.std.zip), 
+                                 sprintf("%.2f (%.2f) %s",intercept.zero.zip , 
+                                         intercept.zero.std.zip, 
+                                         stars.pval(sumzip$coefficients$zero[1,4])), 
+                                 sprintf("%.2f (%.2f) %s",race.zero.zip, 
+                                         race.zero.std.zip,
+                                         stars.pval(sumzip$coefficients$zero[2,4])), 
                                  round(meanblack.zip,2), round(varblack.zip,2), 
                                  round(meanwhite.zip,2), round(varwhite.zip,2), round(aic.zip,2)),
-                         zinb = c(sprintf("%.2f (%.2f)",intercept.zinb , intercept.std.zinb), 
-                                  sprintf("%.2f (%.2f)",race.zinb, race.std.zinb), 
-                                  round(mod.zinb$theta,2), NA,
-                                  sprintf("%.2f (%.2f)",intercept.zero.zinb , intercept.zero.std.zinb), 
-                                  sprintf("%.2f (%.2f)",race.zero.zinb, race.zero.std.zinb), 
+                         zinb = c(sprintf("%.2f (%.2f) %s",intercept.zinb , 
+                                          intercept.std.zinb,
+                                          stars.pval(sumzinb$coefficients$count[1,4])), 
+                                  sprintf("%.2f (%.2f) %s",race.zinb, 
+                                          race.std.zinb,
+                                          stars.pval(sumzinb$coefficients$count[2,4])), 
+                                  sprintf("%.2f (%.2f)", round(mod.zinb$theta,2),
+                                          round(exp(sumzinb$SE.logtheta),2)), 
+                                  NA,
+                                  sprintf("%.2f (%.2f) %s",intercept.zero.zinb , 
+                                          intercept.zero.std.zinb,
+                                          stars.pval(sumzinb$coefficients$zero[1,4])), 
+                                  sprintf("%.2f (%.2f) %s",race.zero.zinb, 
+                                          race.zero.std.zinb,
+                                          stars.pval(sumzinb$coefficients$zero[2,4])), 
                                   round(meanblack.zinb,2), round(varblack.zinb,2), 
                                   round(meanwhite.zinb,2), round(varwhite.zinb,2), round(aic.zinb,2))) 
-rownames(comparison) <- c('Intercept', 'racewhite', '$\\theta$','$\\psi$','Intercept ', 'racewhite ', 
+rownames(comparison) <- c('Intercept', 'racewhite', 'theta','psi','Intercept ', 'racewhite ', 
                           'mean black', 'variance black','mean white', 'variance white', 
                           'AIC')
 comparison %>%
   kable(booktabs = T, 
-        caption = "Comparison of all models with the data. For model parameters, standard deviations are listed between brackets.",
+        caption = sprintf("Comparison of all models with the data. For model parameters, standard deviations are listed between brackets, stars indicate siginifcance (%s).",attr(stars.pval(1),"legend")),
         row.names = TRUE,
         col.names = c('Data', 'Poisson', 'Negative binomial', 'Quasi likelihood',
                       'Zero-inflated  Poisson','Zero-Inflated Negative binomial')) %>%
@@ -442,7 +465,7 @@ comparison %>%
   column_spec(2, width = "1cm") %>%
   kable_styling(font_size = 8)
 ```
-```{r comparemodels2, include=TRUE, message = FALSE, warning = FALSE, fig.cap = "Graphical comparison of the sample probabilities and the predicted probabilities."}
+```{r comparemodels2, include=TRUE, message = FALSE, warning = FALSE, fig.cap = "Graphical comparison of the sample probabilities and the predicted probabilities.", fig.height = 5, fig.width = 10}
 data %>% group_by(race, resp) %>%
   summarize(n = n()) %>% 
   ungroup() %>% 
@@ -492,10 +515,10 @@ A %>%
   geom_point(aes(x = resp, y = probability, color = model), 
              fill = NA, shape = 21) +
   facet_grid(cols = vars(race)) +
-  theme_bw() + theme(legend.position = c(0.8, 0.8))
+  theme_bw() + theme(legend.position = c(0.85, 0.7))
 ```
 
-```{r comparemodels3, include=TRUE, message = FALSE, warning = FALSE, fig.cap = "Graphical comparison of the difference between the sample probabilities and the predicted probabilities."}
+```{r comparemodels3, include=TRUE, message = FALSE, warning = FALSE, fig.cap = "Graphical comparison of the difference between the sample probabilities and the predicted probabilities." , fig.height = 5, fig.width = 10}
 sampleprob <- A[A$model == "data", c('race', 'resp','probability')] %>%
   rename(prob = probability) %>%
   replace_na(list(prob = 0))
@@ -508,6 +531,6 @@ A %>% filter(model != "data") %>%
   geom_point(aes(x = resp, y = diff, color = model), fill = NA, shape = 21) +
   facet_grid(cols = vars(race)) +
   theme_bw() +
-  theme(legend.position = c(0.8, 0.8)) +
+  theme(legend.position = c(0.85, 0.7)) +
   ylab("Predicted probability minus sample probability")
 ```
