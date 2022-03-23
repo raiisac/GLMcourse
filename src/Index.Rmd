@@ -1,28 +1,28 @@
 ---
-title: 'Generalized linear model assignment: Group 8'
-author: 
-  - Jack Heller (r0862809)
-  - Aleksandra Zdravković (r0869484)
-  - Viktoria Kirichenko (r0877202)
-  - Medha Hegde (r0872802)
-  - Barış Aksoy (r0869901)
-  - Raïsa Carmen (s0204278)
-date: "31-12-2021"
-fontsize: 12pt
-header-includes: \usepackage{booktabs}
 output: 
-  bookdown::pdf_document2:
-    keep_tex:  true
-    toc: false
-    fig_caption: yes
-    extra_dependencies: ["float"]
-    includes:
-      in_header: "preamble.tex"
-  pdf_document:
-    extra_dependencies: ["flafter"]
-  bookdown::html_document2:
-    fig_caption: yes
+  stevetemplates::article:
+    fig_caption: true
+title: "Generalized Linear Models: Homicide Victims"
+author:
+- name: Barış Aksoy 
+  affiliation: r0869901
+- name: Raïsa Carmen 
+  affiliation: s0204278
+- name: Medha Hegde 
+  affiliation: r0872802
+- name: Jack Heller 
+  affiliation: r0862809
+- name: Viktoria Kirichenko
+  affiliation: r0877202
+- name: Aleksandra Zdravković 
+  affiliation: r0869484
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+mainfont: Times New Roman
+fontsize: 12pt
+# spacing: double
+endnote: no
 ---
+
 
 ```{r setup, include=FALSE}
 options(knitr.kable.NA = '')
@@ -53,7 +53,7 @@ summ <- data %>% group_by(race) %>%
 
 # Introduction
 
-This report investigated the link between a persons' race and the number of homicide victims a person knows. `r nrow(data)` people were asked how many homicide victims they know. The raw data is analysed in section \@ref(EDA) after which several statistical models are explored in section \@ref(MET). Lastly, section \@ref(CON) concludes the report.
+This report investigated the link between a person's race and the number of homicide victims a person knows. `r nrow(data)` people were asked how many homicide victims they know. The raw data is analyzed in section \@ref(EDA) after which several statistical models are explored in section \@ref(MET). Lastly, section \@ref(CON) concludes the report.
 
 # Data exploration{#EDA}
 
@@ -200,27 +200,24 @@ data %>% group_by(resp, race) %>%
 
 An important assumption in a Poisson model is that mean and variance are equal. The variance in the data is `r round(var(data$resp), digits = 3)` (`r unname(unlist(summ[1,5]))` for black and `r unname(unlist(summ[2,5]))` for white people), while the mean is `r round(mean(data$resp),digits =2)`. Indeed, Figure \@ref(fig:GOF1) shows there is overdispersion (the real variance in red is larger than the simulated variance). 
 
-```{r include=TRUE, message = FALSE}
+```{r include=TRUE, message = FALSE, fig.height = 5, fig.width = 10}
 sim.mod.poisson <- simulateResiduals(mod.poisson, plot = T)
 ```
 
-```{r include=TRUE, message = FALSE}
+```{r include = TRUE, message = FALSE, fig.height = 5, fig.width = 10}
+par(mfrow=c(1,2)) 
 hist(sim.mod.poisson)
+#install.packages("countreg", repos="http://R-Forge.R-project.org")
+rootogram(mod.poisson, ylab = "Root Square of Frequency", main = "Rootogram")
 ```
 
 Kolmogorov-Smirnov test in the residuals' QQ plot indicates a borderline uniformity violation. However, when performing visual inspection of the histogram of DHARMa residuals, the bars do not appear to follow a uniform distribution.
 
-
-```{r ROOT1, include=TRUE, message = FALSE, fig.cap = "Rootogram", fig.width = 10, fig.height = 6}
-#install.packages("countreg", repos="http://R-Forge.R-project.org")
-rootogram(mod.poisson, ylab = "Root Square of Frequency", main = "Rootogram")
-
-```
-
 The rootogram shows that level 1 is overpredicted by our model, while other levels are moderately underpredicted. 
 
 
-```{r GOF1, include=TRUE, message = FALSE, fig.cap = "Test of uniformity and dispersion ", fig.width = 10, fig.height = 6}
+```{r GOF1, include=TRUE, message = FALSE, fig.cap = "Test of uniformity and dispersion ", fig.width = 10, fig.height = 5}
+par(mfrow=c(1,2)) 
 testUniformity(sim.mod.poisson)
 testDispersion(sim.mod.poisson)
 ```
@@ -229,7 +226,6 @@ The red line, which represents the observed variance, is significantly larger th
 
 ```{r outliers, include=TRUE, message = FALSE, fig.cap = "Test of outliers", fig.width = 10, fig.height = 6}
 #testOutliers(sim.mod.poisson, type = "bootstrap")
-
 ```
 
 
@@ -377,7 +373,6 @@ It is interesting to see that $\theta$ is not significant; a zero-inflated Poiss
 # Conclusion {#CON}
 Table \@ref(tab:comparemodels) shows the different models' estimate coefficients and Akaike Information Criterion (AIC). Estimated mean and variance for both races are also included in the table. All models agree that black people know significantly more homicide victims than white people. The mean and variance for the number of homicide victims a black or white person knows is closest to the sample mean and variance in the zip model and the zinb model is a close second. The zip model also has the lowest AIC. Figure \@ref(fig:comparemodels3) compares the different model graphically. It is clear that the poisson model performs the worst, especially for black people. The negative binomial is slightly better than the poisson model for black people but performs bad for white people. The zero-inflated models are the closest to the true data where zip seems to slightly outperform the zinb model; it almost entirely overlaps with the sample probabilities. Figure\@ref(fig:comparemodels3) shows the difference between the predicted and observed probabilities more clearly. Overall, the zip model comes closest to the sample probabilities.
 
-# Appendix {-} 
 \renewcommand{\arraystretch}{0.5}
 ```{r comparemodels, include=TRUE, message = FALSE}
 comparison <- data.frame(data = unlist(c(NA, NA, NA, NA, NA, NA, 
