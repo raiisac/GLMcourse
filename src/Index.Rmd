@@ -19,7 +19,10 @@ author:
 date: '`r format(Sys.Date(), "%B %d, %Y")`'
 mainfont: Times New Roman
 fontsize: 12pt
-# spacing: double
+header-includes:
+    - \usepackage{mathptmx}
+    - \renewcommand{\baselinestretch}{1.2}
+
 endnote: no
 ---
 
