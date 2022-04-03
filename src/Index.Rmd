@@ -363,6 +363,9 @@ Table \@ref(tab:comparemodels) shows the different models' estimate coefficients
 
 \renewcommand{\arraystretch}{0.5}
 
+\newpage
+
+
 ```{r comparemodels, include=TRUE, message = FALSE}
 comparison <- data.frame(data = unlist(c(NA, NA, NA, NA, NA, NA, 
                                 sprintf("%.2f",summ[1,'mean']), summ[1,'variance'],
@@ -448,6 +451,7 @@ comparison %>%
   column_spec(2, width = "1cm") %>%
   kable_styling(font_size = 8)
 ```
+
 
 
 ```{r comparemodels2, include=TRUE, message = FALSE, warning = FALSE, fig.cap = "Graphical comparison of the sample probabilities and the predicted probabilities.", fig.height = 5, fig.width = 10}
