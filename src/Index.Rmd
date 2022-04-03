@@ -1,28 +1,14 @@
 ---
-output: 
-  stevetemplates::article:
-    fig_caption: true
-title: "Generalized Linear Models: Homicide Victims"
-author:
-- name: Barış Aksoy 
-  affiliation: r0869901
-- name: Raïsa Carmen 
-  affiliation: s0204278
-- name: Medha Hegde 
-  affiliation: r0872802
-- name: Jack Heller 
-  affiliation: r0862809
-- name: Viktoria Kirichenko
-  affiliation: r0877202
-- name: Aleksandra Zdravković 
-  affiliation: r0869484
-date: '`r format(Sys.Date(), "%B %d, %Y")`'
-mainfont: Times New Roman
+documentclass: article
 fontsize: 12pt
-# spacing: double
-endnote: no
+output:
+  bookdown::pdf_document2: 
+    toc: false
+    latex_engine: xelatex
+    includes:
+      in_header: preamble.sty
+      before_body: titlepage.sty
 ---
-
 
 ```{r setup, include=FALSE}
 options(knitr.kable.NA = '')
@@ -53,9 +39,9 @@ summ <- data %>% group_by(race) %>%
 
 # Introduction
 
-This report investigated the link between a person's race and the number of homicide victims a person knows. `r nrow(data)` people were asked how many homicide victims they know. The raw data is analyzed in section \@ref(EDA) after which several statistical models are explored in section \@ref(MET). Lastly, section \@ref(CON) concludes the report.
+This report investigated the link between a person's race and the number of homicide victims a person knows. `r nrow(data)` people were asked how many homicide victims they know. The raw data is analyzed in [section Data Exploration](#EDA) after which several statistical models are explored in [section Methodology and Results](#MET). Lastly, [section Conclusions](#CON) concludes the report.
 
-# Data exploration{#EDA}
+# Data Exploration{#EDA}
 
 In total, `r nrow(data)` people were asked how many homicide victims they knew. Figure \@ref(fig:Response) shows the absolute and relative number of people for each race that knew 0, 1, 2, 3, 4, 5, or 6 homicide victims. There are a lot more white participants in the study (`r summ[2,'nb']` (`r round(summ[2,'nb']/nrow(data)*100, digits=2)`%) white versus `r summ[1,'nb']` (`r round(summ[1,'nb']/nrow(data)*100,digits=2)`%) black people were questioned) and the relative frequencies show that black people know more homicide victims on average (`r summ[2,'mean']` known homicide victims per person on average for white with a variance of `r summ[2,'variance']` and `r summ[1,'mean']` on average for black participants with a variance of `r summ[1,'variance']`).
 
@@ -367,13 +353,16 @@ varwhite.zinb <- (1 - piwhite.zinb) * lambdawhite.zinb * (1 + lambdawhite.zinb *
 
 #https://data.princeton.edu/wws509/notes/countmoments
 ```
+
 For the zero-inflated Negative Binomial (zinb) model, the mean and variance are calculated as $\mu_i = (1-\pi_i)\lambda_i$ and $\sigma^2_i = (1-\pi_i)\lambda_i(1 + \lambda_i(\pi_i + \alpha))$ with $i \in \{white, black\}$ where $\lambda$ is the average for the negative binomial process, $\pi$ the probability of zero, and $\alpha = \frac{1}{\theta}$ the overdispersion parameter. This yields $\mu_{black}=$ `r round(meanblack.zinb, digits=2)` and $\sigma^2_{black} =$ `r round(varblack.zinb, digits=2)` for black people and $\mu_{white}=$ `r round(meanwhite.zinb, digits=2)` and $\sigma^2_{white} =$ `r round(varwhite.zinb, digits=2)` for white people.
 It is interesting to see that $\theta$ is not significant; a zero-inflated Poisson where ($\theta$ = 1) might be just as good.
 
 # Conclusion {#CON}
+
 Table \@ref(tab:comparemodels) shows the different models' estimate coefficients and Akaike Information Criterion (AIC). Estimated mean and variance for both races are also included in the table. All models agree that black people know significantly more homicide victims than white people. The mean and variance for the number of homicide victims a black or white person knows is closest to the sample mean and variance in the zip model and the zinb model is a close second. The zip model also has the lowest AIC. Figure \@ref(fig:comparemodels3) compares the different model graphically. It is clear that the poisson model performs the worst, especially for black people. The negative binomial is slightly better than the poisson model for black people but performs bad for white people. The zero-inflated models are the closest to the true data where zip seems to slightly outperform the zinb model; it almost entirely overlaps with the sample probabilities. Figure\@ref(fig:comparemodels3) shows the difference between the predicted and observed probabilities more clearly. Overall, the zip model comes closest to the sample probabilities.
 
 \renewcommand{\arraystretch}{0.5}
+
 ```{r comparemodels, include=TRUE, message = FALSE}
 comparison <- data.frame(data = unlist(c(NA, NA, NA, NA, NA, NA, 
                                 sprintf("%.2f",summ[1,'mean']), summ[1,'variance'],
@@ -459,6 +448,8 @@ comparison %>%
   column_spec(2, width = "1cm") %>%
   kable_styling(font_size = 8)
 ```
+
+
 ```{r comparemodels2, include=TRUE, message = FALSE, warning = FALSE, fig.cap = "Graphical comparison of the sample probabilities and the predicted probabilities.", fig.height = 5, fig.width = 10}
 data %>% group_by(race, resp) %>%
   summarize(n = n()) %>% 
