@@ -184,7 +184,7 @@ data %>% group_by(resp, race) %>%
   scale_fill_discrete(name = "", labels = c('True probability','Predicted probability'))
 ```
 
-An important assumption in a Poisson model is that mean and variance are equal. The variance in the data is `r round(var(data$resp), digits = 3)` (`r unname(unlist(summ[1,5]))` for black and `r unname(unlist(summ[2,5]))` for white people), while the mean is `r round(mean(data$resp),digits =2)`. Indeed, Figure \@ref(fig:GOF1) shows there is overdispersion (the real variance in red is larger than the simulated variance). 
+An important assumption in a Poisson model is that mean and variance are equal. The variance in the data is `r round(var(data$resp), digits = 3)` (`r unname(unlist(summ[1,5]))` for black and `r unname(unlist(summ[2,5]))` for white people), while the mean is `r round(mean(data$resp),digits =2)`. Indeed, Figure \@ref(fig:GOF1) shows there is overdispersion (the real variance in red is larger than the simulated variance). The histogram of DHARMa residuals shows the presence of outliers. However, more detailed investigation using Cook's distance, DFFITS, DFBETAS, or delta Chi$^2$ showed inconsistent results on the outliers. Therefore, no observations were removed as outliers.
 
 ```{r include=TRUE, message = FALSE, fig.height = 5, fig.width = 10}
 sim.mod.poisson <- simulateResiduals(mod.poisson, plot = T)
@@ -197,6 +197,47 @@ hist(sim.mod.poisson)
 rootogram(mod.poisson, ylab = "Root Square of Frequency", main = "Rootogram")
 ```
 
+
+```{r outlierdetection, include = FALSE, message = FALSE, warning = FALSE}
+library(rgl)
+library(MASS)
+library(robustbase)
+
+n <- dim(data)[1]
+p <- dim(data)[2]
+
+
+#DFFITS
+p.dffits <- dffits(mod.poisson)
+plot(p.dffits, ylab = "DFFITS")
+abline(h = 2*sqrt(p/n), col = "red")
+
+# Cook's distance
+#Cook's distance measures the influence of the ith case on all n
+#fitted values 
+Cd <- cooks.distance(mod.poisson)
+plot(Cd, ylab = "Cook's distance")
+abline(h = 1, col = "red")
+#usually pinpoints less outliers-> here none are >1
+
+# DFBETAS
+#The DFBETAS measure computes for each case i its influence on
+#each regression coefficient beta hat
+LS.dfbetas <- dfbetas(mod.poisson)
+LS.dfbetas
+2/sqrt(n)
+
+#cunstructing delta Chi 2
+epi <- (data$resp-mod.poisson$fitted.values)/sd(mod.poisson$fitted.values)
+# Diagonal elements of hat matrix
+p.influence <- influence(mod.poisson)
+plot(p.influence$hat, ylab = "Diagonal elements of hat matrix")
+espi <- epi/sqrt(1-p.influence$hat)
+deltaChi2 <- espi^2
+plot(deltaChi2)
+```
+
+
 Kolmogorov-Smirnov test in the residuals' QQ plot indicates a borderline uniformity violation. However, when performing visual inspection of the histogram of DHARMa residuals, the bars do not appear to follow a uniform distribution.
 
 The rootogram shows that level 1 is overpredicted by our model, while other levels are moderately underpredicted. 
@@ -208,26 +249,11 @@ testUniformity(sim.mod.poisson)
 testDispersion(sim.mod.poisson)
 ```
 
-The red line, which represents the observed variance, is significantly larger than what we would expect under the model. This indicates the presence of overdispersion. 
-
-```{r outliers, include=TRUE, message = FALSE, fig.cap = "Test of outliers", fig.width = 10, fig.height = 6}
-#testOutliers(sim.mod.poisson, type = "bootstrap")
-```
+The red line in Figure \@ref(fig: GOF1), which represents the observed variance, is significantly larger than what we would expect under the model. This indicates the presence of overdispersion. 
 
 
 
 ## Negative-binomial model
-
-<!-- This model uses the Pascal distribution which counts the number of failures before the y$^{th}$ success. If $x \sim NB(y,\pi)$ with $\pi$ the probability of success; -->
-
-<!-- \begin{equation}  -->
-<!-- \begin{aligned} -->
-<!-- E(x) = \mu = \frac{y\pi}{1-\pi} \\ -->
-<!--   Var(x) = \sigma^2 = \frac{y\pi}{(1-\pi)^2} = \mu+\frac{1}{\theta}\mu^2 -->
-<!--   (\#eq:binom) -->
-<!-- \end{aligned} -->
-<!-- \end{equation}  -->
-<!--  This means that the negative binomial model assumes a quadratic relationship between the mean and the variance.  -->
 
  
 ```{r negbin, include=FALSE, message = FALSE}
@@ -363,8 +389,8 @@ Table \@ref(tab:comparemodels) shows the different models' estimate coefficients
 
 \renewcommand{\arraystretch}{0.5}
 
+# Appendix {-}
 \newpage
-
 
 ```{r comparemodels, include=TRUE, message = FALSE}
 comparison <- data.frame(data = unlist(c(NA, NA, NA, NA, NA, NA, 
