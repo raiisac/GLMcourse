@@ -184,8 +184,9 @@ data %>% group_by(resp, race) %>%
   facet_grid(cols = vars(race)) +
   scale_fill_discrete(name = "", labels = c('True probability','Predicted probability'))
 ```
+
 An important assumption in a Poisson model is that mean and variance are equal. The variance in the data is `r round(var(data$resp), digits = 3)` (`r unname(unlist(summ[1,5]))` for black respondents and `r unname(unlist(summ[2,5]))` for white respondents), while the mean is `r round(mean(data$resp),digits =2)`. Indeed, Figure \@ref(fig:GOF1) shows there is overdispersion (the real variance in red is larger than the simulated variance). 
-The histogram of DHARMa residuals shows the presence of outliers. However, more detailed investigation using Cook's distance, DFFITS, DFBETAS, or delta Chi$^2$ showed inconsistent results on the outliers. Therefore, no observations were removed as outliers.
+
 
 ```{r include=FALSE, message = FALSE, fig.height = 5, fig.width = 10}
 sim.mod.poisson <- simulateResiduals(mod.poisson, plot = T)
@@ -244,17 +245,11 @@ deltaChi2 <- espi^2
 plot(deltaChi2)
 ```
 
+The histogram of DHARMa residuals shows the presence of outliers. However, more detailed investigation using Cook's distance, DFFITS, DFBETAS, or delta Chi$^2$ showed inconsistent results on the outliers. Therefore, no observations were removed as outliers.
 
 Kolmogorov-Smirnov test in the residuals' QQ plot indicates a borderline uniformity violation (see Figure \@ref(fig:GOF1)). However, when performing visual inspection of the histogram of DHARMa residuals, the bars do not appear to follow a uniform distribution.
 
 The rootogram (see Figure \@ref(fig:ROOT)) shows that level 1 is overpredicted by our model, while other levels are moderately underpredicted. 
-
-
-```{r GOF1, include=TRUE, message = FALSE, fig.cap = "Test of uniformity and dispersion ", fig.width = 10, fig.height = 5}
-par(mfrow=c(1,2)) 
-testUniformity(sim.mod.poisson)
-testDispersion(sim.mod.poisson)
-```
 
 As already mentioned, the red line in Figure \@ref(fig:GOF1), which represents the observed variance, is significantly larger than what we would expect under the model. This indicates the presence of overdispersion. 
 
@@ -262,10 +257,7 @@ As already mentioned, the red line in Figure \@ref(fig:GOF1), which represents t
 #testOutliers(sim.mod.poisson, type = "bootstrap")
 ```
 
-
-
 ## Negative-binomial model
-
  
 ```{r negbin, include=FALSE, message = FALSE}
 mod.nb <- glm.nb(resp ~ race, data = data)
@@ -433,7 +425,9 @@ Figure \@ref(fig:comparemodels3) shows the difference between the predicted and 
 
 \renewcommand{\arraystretch}{0.5}
 
+
 # Appendix {-}
+
 
 ```{r comparemodels, include=TRUE, message = FALSE, fig.pos='H'}
 comparison <- data.frame(data = unlist(c(NA, NA, NA, NA, NA, NA, 
@@ -582,7 +576,8 @@ A %>%
                      values = c("#F8766D", "#BB9D00", "#00C0B8", "#00A5FF", "#E76BF3")) -> p1
 ```
 
-```{r comparemodels3, include=TRUE, message = FALSE, warning = FALSE, fig.cap = "Top figures show the predicted probabilities and sample probabilities in the data. The bottom figures show the predicted probability minus the sample probability.", fig.height = 5, fig.width = 5}
+
+```{r comparemodels3, include=TRUE, message = FALSE, warning = FALSE, fig.cap = "Top figures show the predicted probabilities and sample probabilities in the data. The bottom figures show the predicted probability minus the sample probability.", fig.height = 5, fig.width = 5, fig.pos='H'}
 sampleprob <- A[A$model == "data", c('race', 'resp','probability')] %>%
   rename(prob = probability) %>%
   replace_na(list(prob = 0))
